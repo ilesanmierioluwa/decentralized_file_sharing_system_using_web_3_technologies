@@ -1,0 +1,78 @@
+====================================================================
+HOW TO GET A FREE SEPOLIA RPC URL (Infura or Alchemy)
+====================================================================
+The DApp needs a Sepolia RPC endpoint so it can talk to the Ethereum
+Sepolia testnet (read the smart contract, sign/send transactions).
+Both Infura and Alchemy are free to use for this. Pick ONE option.
+
+--------------------------------------------------------------------
+OPTION A: INFURA  (recommended if you prefer Ethereum-focused tooling)
+--------------------------------------------------------------------
+1. Go to https://app.infura.io/ and click "Sign up".
+2. Create a free account (email + password, or Google login).
+3. After logging in, you'll land in the dashboard. Click
+   "Create new API key".
+4. Pick the "Web3 API" product, give it a name (e.g. "sep-fileshare"),
+   and click "Create".
+5. In the key list, click the key you just created.
+6. Copy the HTTPS endpoint that says "Sepolia". It looks like:
+   https://sepolia.infura.io/v3/YOUR_PROJECT_ID
+   (the PROJECT_ID is the long hex string on your dashboard)
+7. Paste that URL into the project's .env file as:
+   SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
+
+--------------------------------------------------------------------
+OPTION B: ALCHEMY  (recommended if you want an alternative)
+--------------------------------------------------------------------
+1. Go to https://www.alchemy.com/ and click "Sign up" (free).
+2. After login, click "Create new app".
+3. Network: select "Ethereum" -> "Sepolia".
+4. Give it a name (e.g. "fileshare-sepolia") and click "Create app".
+5. Open the app and copy the "HTTPS" endpoint URL. It looks like:
+   https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+6. Paste that URL into the project's .env file as:
+   SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+
+--------------------------------------------------------------------
+HOW TO GET FREE SEPOLIA TEST ETH (for paying gas)
+--------------------------------------------------------------------
+You need test ETH to pay gas for deploy + every transaction. It is
+FREE. Use any of these faucets (they each allow a limited amount per
+day):
+   - https://sepoliafaucet.com        (need an Alchemy account - free)
+   - https://www.sepoliafaucet.io/
+   - https://cloud.google.com/application/web3/faucet/ethereum/sepolia
+   - https://faucet.quicknode.com/ethereum/sepolia
+1. Paste your MetaMask wallet address into the faucet.
+2. Wait a few minutes; the test ETH arrives in your wallet.
+3. You can keep requesting from different faucets if you run low.
+   For this whole project a few test ETH is way more than enough.
+
+--------------------------------------------------------------------
+HOW TO GET AN ETHERSCAN API KEY (for contract verification)
+--------------------------------------------------------------------
+1. Go to https://etherscan.io/ and create a free account.
+2. After login: https://etherscan.io/myapikey -> click "Add".
+3. Name it anything, create it. Free keys are rate-limited but fine.
+4. Paste it into the project's .env file as:
+   ETHERSCAN_API_KEY=YOUR_ETHERSCAN_API_KEY
+
+--------------------------------------------------------------------
+FINAL .env FILE (all optional except Pinata)
+--------------------------------------------------------------------
+   SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
+   SEPOLIA_PRIVATE_KEY=0x...your-deployer-wallet-private-key
+   ETHERSCAN_API_KEY=YOUR_ETHERSCAN_API_KEY
+   PINATA_API_KEY=YOUR_PINATA_API_KEY
+   PINATA_SECRET_API_KEY=YOUR_PINATA_SECRET_API_KEY
+   PINATA_JWT=YOUR_PINATA_JWT
+
+   VITE_SEPOLIA_RPC_URL=...        (copy of SEPOLIA_RPC_URL)
+   VITE_PINATA_JWT=YOUR_PINATA_JWT (used by the browser frontend)
+   VITE_CONTRACT_ADDRESS=0x...     (filled after deployment)
+   VITE_GATEWAY=https://gateway.pinata.cloud/ipfs/
+
+NOTE: .env is git-ignored. NEVER commit it. The .env.example file is
+the committed template showing which variables exist.
+====================================================================
+

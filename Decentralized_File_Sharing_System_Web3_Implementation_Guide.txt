@@ -1,0 +1,660 @@
+====================================================================
+DEVELOPMENT OF A DECENTRALIZED FILE SHARING SYSTEM USING WEB 3
+TECHNOLOGIES
+IMPLEMENTATION GUIDE / BUILD PROMPT
+====================================================================
+
+ilesanmierioluwavictor_db_user
+
+5rxrlcqVNndcNEDV
+
+mongodb+srv://ilesanmierioluwavictor_db_user:5rxrlcqVNndcNEDV@decentralizedfilesharin.qhlezcf.mongodb.net/?appName=DecentralizedFileSharingSystemUsingWeb3Technologies
+HOW TO USE THIS DOCUMENT
+--------------------------------------------------------------------
+This is a full implementation blueprint you (or an AI coding
+assistant such as Claude Code) can follow section by section to
+build the project from scratch. Each section can also be copy-pasted
+as a standalone prompt if you want to generate one module at a time.
+Work top-down: Chapters 1-3 are planning/design (do these in your
+project report first), Chapters 4-10 are the actual build.
+
+
+====================================================================
+1. PROJECT DEFINITION
+====================================================================
+
+1.1 Problem Statement
+- Conventional file sharing platforms (Google Drive, Dropbox,
+  WeTransfer, etc.) rely on a single central server/company. This
+  creates a single point of failure, exposes users to censorship or
+  arbitrary account suspension, and requires blind trust in the
+  provider's handling of data.
+- There is no widely-accessible, verifiable way for a user to prove
+  file ownership and control access permissions without depending on
+  that central authority.
+
+1.2 Aim
+Design and implement a Decentralized File Sharing System that stores
+files on the InterPlanetary File System (IPFS) and manages file
+ownership/access permissions via an Ethereum smart contract, so no
+single central server controls storage or access decisions.
+
+1.3 Objectives
+1. Allow a user to connect to the DApp using a Web3 wallet
+   (MetaMask) instead of a username/password.
+2. Allow a connected user to upload a file, which is stored on IPFS
+   and returns a Content Identifier (CID).
+3. Record the CID, file metadata, and owner's wallet address in a
+   Solidity smart contract deployed on an Ethereum test network.
+4. Allow the file owner to grant/revoke access to specific wallet
+   addresses via the smart contract.
+5. Allow only addresses explicitly permitted by the smart contract
+   to retrieve and decrypt a given file.
+6. Encrypt files client-side before upload so that even though IPFS
+   is a public network, unauthorized parties who find the CID cannot
+   read the file content.
+7. Provide a React.js front end (DApp) showing "My Files," "Shared
+   With Me," upload, and access-management screens.
+8. Demonstrate the system working end-to-end on the Ethereum Sepolia
+   testnet.
+9. Evaluate and document the system's resistance to single points of
+   failure and censorship compared with a centralized file-sharing
+   service.
+
+1.4 Scope
+In-scope:
+- Wallet-based authentication (MetaMask / any EIP-1193 wallet)
+- File upload/pinning to IPFS via Pinata (or web3.storage/NFT.Storage
+  as alternatives)
+- Client-side symmetric encryption of files before upload
+- Solidity smart contract: file registry + access control
+- Grant/revoke access per wallet address, per file
+- Optional: expiring access, optional: group/multi-recipient sharing
+- Download + client-side decryption for authorized users
+- Activity/event log sourced from blockchain events (no separate
+  central logging DB needed — this is a nice "decentralized-native"
+  design point for your report)
+- Gas cost analysis / test network deployment documentation
+
+Out of scope (state as future work):
+- Mainnet deployment (real ETH costs money — stick to Sepolia
+  testnet)
+- Fully trustless key exchange without any off-chain component (a
+  simplified key-sharing approach is fine for a school project — see
+  Section 2.3)
+- Mobile app version
+- Layer-2 scaling integration (mention as future work if you want to
+  sound advanced)
+
+1.5 Significance of the Study
+Demonstrates practical Web3 architecture (IPFS + smart contracts),
+shows how decentralization can address censorship-resistance and
+single-point-of-failure concerns in file sharing, and serves as a
+teaching reference for blockchain-based access control systems.
+
+
+====================================================================
+2. SYSTEM REQUIREMENTS
+====================================================================
+
+2.1 Actors
+- File Owner: uploads a file, becomes its on-chain owner, manages
+  who can access it.
+- Grantee: a wallet address the owner has explicitly permitted to
+  access a specific file.
+- (No central admin role — that's the whole point. If your school
+  requires an "admin" for grading/demo purposes, you can add a
+  read-only "Contract Deployer" role that can see aggregate stats but
+  cannot access file contents or override permissions — document
+  this as an optional non-privileged convenience feature, not a
+  backdoor.)
+
+2.2 Functional Requirements
+FR1  User connects wallet (MetaMask) to the DApp; the DApp reads the
+     connected address and treats it as the user's identity — no
+     separate password-based login.
+FR2  User selects a file to upload; the DApp encrypts the file
+     client-side (AES-256-GCM) with a randomly generated symmetric
+     key before uploading the encrypted blob to IPFS via Pinata's
+     pinning API.
+FR3  DApp receives the resulting CID from Pinata and calls the smart
+     contract's `uploadFile(cid, fileName, fileType, fileSize)`
+     function, which stores a File record with `owner = msg.sender`.
+FR4  Owner can call `grantAccess(fileId, granteeAddress)` on the
+     smart contract to permit another wallet to access a file; can
+     call `revokeAccess(fileId, granteeAddress)` to remove it.
+FR5  Smart contract exposes `hasAccess(fileId, address) returns
+     (bool)` and `getMyFiles()` / `getFilesSharedWithMe()` view
+     functions (implemented via mappings/arrays) for the frontend to
+     query.
+FR6  When granting access, the DApp also needs the grantee to be
+     able to decrypt the file — see Section 2.3 for the recommended
+     key-sharing design, since a raw AES key must never be put
+     directly on a public blockchain.
+FR7  Only a wallet address for which `hasAccess()` returns true may
+     retrieve the decrypted file through the DApp; the DApp enforces
+     this check before attempting decryption, and the smart contract
+     is the ultimate source of truth for the permission itself.
+FR8  DApp "My Files" page: list of files the connected wallet owns,
+     with buttons to view, share (grant access), see current
+     grantees, and revoke access.
+FR9  DApp "Shared With Me" page: list of files where the connected
+     wallet has been granted access, with a download/decrypt button.
+FR10 DApp Activity Log page: reads blockchain events
+     (FileUploaded, AccessGranted, AccessRevoked) via Ethers.js event
+     listeners/queries and displays a chronological log — no separate
+     backend database is required for this, demonstrating a genuinely
+     decentralized audit trail.
+FR11 Optional stretch feature: time-limited access — store an
+     `expiry` timestamp per grant and have the frontend (and,
+     ideally, `hasAccess()`) treat access as invalid after that time.
+FR12 Optional stretch feature: file "un-list"/soft-delete — owner
+     marks a file inactive; contract keeps the historical record
+     (blockchains are immutable anyway) but the frontend hides it
+     from active lists.
+
+2.3 CRITICAL DESIGN DECISION — Key Management (explain this clearly
+in your report; examiners will ask about it)
+A blockchain is public — anything written to it, including via a
+"grantAccess" transaction's calldata, is visible to anyone who
+inspects the chain. So you must NEVER write a raw encryption key
+on-chain. Two acceptable approaches for a school project, in
+increasing order of sophistication:
+
+Approach A (simple, recommended baseline):
+- Encrypt the file with a random AES key.
+- Encrypt that AES key itself with the grantee's Ethereum public key
+  using an asymmetric scheme (e.g. eth-crypto library, which supports
+  encryption to a public key derivable from a signature) so only the
+  grantee's wallet can decrypt the AES key.
+- Store this small encrypted-key blob either: (a) alongside the file
+  metadata in the smart contract's storage (it's small, and it's
+  ciphertext so it's safe to be public), or (b) pinned to IPFS with
+  its own CID that's stored in the contract's File record per
+  grantee.
+- When the owner grants access, the DApp performs this
+  encrypt-key-to-grantee step client-side and submits the resulting
+  ciphertext with the `grantAccess` transaction.
+
+Approach B (more advanced, good for a stronger final-year project):
+- Use a lightweight off-chain key server that a grantee's wallet must
+  authenticate to (via a signed message, no password) before
+  receiving the decryption key — but only after the key server checks
+  the smart contract's `hasAccess()` result on-chain. Document this
+  as a hybrid design and clearly explain the trust trade-off you're
+  making (the key server becomes a small trusted component; discuss
+  this openly as a limitation in your report — decentralization is a
+  spectrum, and being honest about this trade-off will impress
+  examiners more than pretending it's 100% trustless).
+
+Pick Approach A unless your supervisor wants something more advanced.
+
+2.4 Non-Functional Requirements
+NFR1  Security: files encrypted client-side before ever leaving the
+      browser; smart contract functions must use `require()` checks
+      so only the owner can grant/revoke access to their own files.
+NFR2  Gas efficiency: minimize on-chain storage (store only CID,
+      hashes, addresses, and small encrypted-key blobs on-chain —
+      never raw file bytes) to keep testnet gas costs reasonable;
+      document actual gas costs per function in your report.
+NFR3  Usability: DApp should clearly show wallet connection status,
+      network (must be on Sepolia), and transaction status
+      (pending/confirmed/failed) using Ethers.js provider events.
+NFR4  Reliability: handle IPFS pinning failures and blockchain
+      transaction failures gracefully with clear user-facing error
+      messages.
+NFR5  Testability: smart contract must have a full Hardhat/Foundry
+      test suite covering access control logic.
+NFR6  Maintainability: clear separation between smart contract
+      (on-chain logic), IPFS service layer, and React UI layer.
+
+
+====================================================================
+3. SYSTEM ARCHITECTURE
+====================================================================
+
+3.1 High-Level Architecture
+  [Browser / React DApp]
+        |  (Ethers.js)                (Pinata SDK/REST API)
+        v                                     v
+  [MetaMask Wallet]  <-- signs txns   [IPFS network via Pinata]
+        |                                     ^
+        v  (JSON-RPC via Infura/Alchemy)      |
+  [Ethereum Sepolia Testnet]                  |
+        |                                     |
+  [FileRegistry.sol smart contract] --stores CID, owner, permissions
+
+  Flow: User encrypts file client-side -> uploads encrypted blob to
+  IPFS (gets CID) -> calls smart contract to register CID + metadata
+  -> owner grants access to other wallets (with per-grantee encrypted
+  key) -> grantee's DApp checks `hasAccess()` on-chain -> if true,
+  fetches encrypted blob from IPFS by CID -> decrypts locally using
+  their wallet-derived key.
+
+3.2 Recommended Tech Stack (matches your abstract exactly)
+- Smart contract language: Solidity ^0.8.x
+- Development framework: Hardhat (recommended over Truffle — better
+  modern tooling, TypeScript support, built-in testing)
+- Blockchain network: Ethereum Sepolia testnet (get free test ETH
+  from a Sepolia faucet)
+- Node access: Infura or Alchemy RPC endpoint
+- Frontend: React.js (Vite recommended for fast setup) +
+  Ethers.js v6 for contract interaction and wallet connection
+- Wallet: MetaMask (browser extension)
+- File storage: IPFS via Pinata (pinning service — use Pinata's SDK
+  or REST API with an API key/JWT)
+- Client-side encryption: Web Crypto API (`crypto.subtle`) for
+  AES-256-GCM, or the `crypto-js` library if you prefer simplicity
+  over using native browser crypto
+- Key encryption for sharing: `eth-crypto` npm package (supports
+  encrypting data to an Ethereum public key)
+- Styling: Tailwind CSS
+- Testing: Hardhat + Chai/Mocha for contract tests; React Testing
+  Library for frontend components (optional)
+
+3.3 Suggested Repository Structure
+  /project-root
+    /contracts
+      FileRegistry.sol
+    /test
+      FileRegistry.test.js
+    /scripts
+      deploy.js
+    /frontend
+      /src
+        /components   (WalletConnect, FileUpload, FileList,
+                       ShareModal, ActivityLog)
+        /hooks         (useContract.js, useWallet.js)
+        /services      (ipfsService.js, encryptionService.js,
+                       contractService.js)
+        App.jsx
+    hardhat.config.js
+    README.md
+
+
+====================================================================
+4. SMART CONTRACT DESIGN
+====================================================================
+
+4.1 Core Data Structures (Solidity, conceptual)
+  struct File {
+      uint256 id;
+      address owner;
+      string cid;            // IPFS Content Identifier
+      string fileName;
+      string fileType;
+      uint256 fileSize;
+      uint256 uploadedAt;
+      bool isActive;
+  }
+
+  struct AccessGrant {
+      address grantee;
+      string encryptedKeyBlob;  // AES key, encrypted to grantee's
+                                 // public key (see Section 2.3)
+      uint256 grantedAt;
+      uint256 expiresAt;        // 0 = no expiry
+      bool revoked;
+  }
+
+  mapping(uint256 => File) public files;
+  mapping(uint256 => AccessGrant[]) public fileAccessGrants;
+  mapping(address => uint256[]) public ownerFiles;
+  mapping(address => uint256[]) public sharedWithMe;
+  uint256 public fileCount;
+
+4.2 Core Functions
+  function uploadFile(string cid, string fileName, string fileType,
+      uint256 fileSize) external returns (uint256 fileId)
+    - creates a File record, owner = msg.sender, emits FileUploaded
+
+  function grantAccess(uint256 fileId, address grantee,
+      string encryptedKeyBlob, uint256 expiresAt) external
+    - require(files[fileId].owner == msg.sender, "Not file owner")
+    - pushes an AccessGrant, updates sharedWithMe[grantee], emits
+      AccessGranted
+
+  function revokeAccess(uint256 fileId, address grantee) external
+    - require(files[fileId].owner == msg.sender, "Not file owner")
+    - marks the matching AccessGrant.revoked = true, emits
+      AccessRevoked
+
+  function hasAccess(uint256 fileId, address user) public view
+      returns (bool)
+    - returns true if user == files[fileId].owner, OR if there is a
+      non-revoked, non-expired AccessGrant for that user
+
+  function getMyFiles() external view returns (uint256[] memory)
+    - returns ownerFiles[msg.sender]
+
+  function getFilesSharedWithMe() external view returns
+      (uint256[] memory)
+    - returns sharedWithMe[msg.sender]
+
+  function getEncryptedKeyFor(uint256 fileId, address user) external
+      view returns (string memory)
+    - require(hasAccess(fileId, user), "No access")
+    - returns the matching AccessGrant.encryptedKeyBlob so the
+      grantee's DApp can decrypt it client-side with their wallet
+
+4.3 Events (used to power the on-chain Activity Log, FR10)
+  event FileUploaded(uint256 indexed fileId, address indexed owner,
+      string cid, uint256 timestamp);
+  event AccessGranted(uint256 indexed fileId, address indexed owner,
+      address indexed grantee, uint256 timestamp);
+  event AccessRevoked(uint256 indexed fileId, address indexed owner,
+      address indexed grantee, uint256 timestamp);
+
+4.4 Security Checks to Implement & Test
+- Only the file owner can grant/revoke access to their own file
+  (`require(msg.sender == files[fileId].owner)`).
+- `hasAccess()` must correctly return false after revocation and
+  after expiry.
+- Prevent granting access to the zero address.
+- Prevent an owner from being "revoked" from their own file (owner
+  always implicitly has access).
+- Use `nonReentrant` guard (OpenZeppelin) on any function that could
+  plausibly be extended to handle value transfers in future work,
+  even if this version doesn't transfer ETH, to demonstrate awareness
+  of reentrancy risk.
+- Emit events for every state change so nothing depends on off-chain
+  storage for the audit trail.
+
+
+====================================================================
+5. MODULE-BY-MODULE BUILD PROMPTS
+====================================================================
+
+--------------------------------------------------------------------
+MODULE 1: Project Setup
+--------------------------------------------------------------------
+"Set up a Hardhat project named 'decentralized-file-share'. Configure
+hardhat.config.js for the Sepolia testnet using an Infura/Alchemy RPC
+URL and a deployer private key loaded from a .env file (never commit
+this file — add it to .gitignore). Install OpenZeppelin contracts for
+utilities like ReentrancyGuard. Create a separate /frontend folder
+with a Vite + React app, install ethers v6, and set up a basic
+WalletConnect component that requests `eth_requestAccounts` from
+MetaMask, displays the connected address, and prompts the user to
+switch network if they are not on Sepolia (chainId 11155111)."
+
+--------------------------------------------------------------------
+MODULE 2: Smart Contract — FileRegistry.sol
+--------------------------------------------------------------------
+"Write a Solidity ^0.8.20 contract `FileRegistry` implementing the
+data structures and functions described in Section 4 (File struct,
+AccessGrant struct, uploadFile, grantAccess, revokeAccess, hasAccess,
+getMyFiles, getFilesSharedWithMe, getEncryptedKeyFor) with the events
+FileUploaded, AccessGranted, AccessRevoked. Add require() checks for
+all owner-only actions and for zero-address grants. Include NatSpec
+comments (///) on every public/external function explaining what it
+does, since this documentation is useful for both your report
+appendix and Solidity best practice."
+
+--------------------------------------------------------------------
+MODULE 3: Smart Contract Tests
+--------------------------------------------------------------------
+"Write a Hardhat test file FileRegistry.test.js using Chai that
+covers:
+  - uploadFile creates a file owned by the caller and emits
+    FileUploaded.
+  - grantAccess by a non-owner reverts.
+  - After grantAccess, hasAccess(fileId, grantee) returns true.
+  - After revokeAccess, hasAccess(fileId, grantee) returns false.
+  - A grant with an expiresAt in the past makes hasAccess() return
+    false even without an explicit revoke.
+  - getEncryptedKeyFor reverts if the caller doesn't have access.
+  - getMyFiles and getFilesSharedWithMe return the correct file ID
+    lists for different test accounts (use Hardhat's built-in signer
+    accounts to simulate multiple wallets).
+Run `npx hardhat test` and include the passing test output as a
+screenshot/appendix in your report."
+
+--------------------------------------------------------------------
+MODULE 4: Deployment to Sepolia
+--------------------------------------------------------------------
+"Write a Hardhat deploy script scripts/deploy.js that deploys
+FileRegistry to whatever network is specified (localhost for dev,
+sepolia for the real testnet demo) and logs the deployed contract
+address. Deploy first to the local Hardhat network for fast
+iteration, then to Sepolia for the final demo (get free Sepolia ETH
+from a public faucet — document which faucet you used and roughly
+how much test ETH the whole project's testing consumed, since gas
+cost analysis is a nice thing to report on). Verify the deployed
+contract on Etherscan (Sepolia) using the hardhat-etherscan plugin so
+examiners can inspect the deployed bytecode/source directly — this is
+an easy, impressive thing to show live."
+
+--------------------------------------------------------------------
+MODULE 5: Client-Side Encryption Service
+--------------------------------------------------------------------
+"Create encryptionService.js in the frontend that:
+  1. `generateFileKey()` — generates a random AES-256-GCM key using
+     the Web Crypto API (crypto.subtle.generateKey).
+  2. `encryptFile(fileBytes, key)` — encrypts a file's ArrayBuffer,
+     returns { ciphertext, iv }.
+  3. `decryptFile(ciphertext, key, iv)` — reverses the above.
+  4. `encryptKeyForRecipient(rawKeyBytes, recipientPublicKey)` and
+     `decryptKeyForRecipient(encryptedBlob, myPrivateKeyOrSignature)`
+     — implement using the `eth-crypto` package (as described in
+     Section 2.3 Approach A); note that MetaMask does not expose a
+     raw private key, so use the standard approach of having the user
+     sign a fixed message once to deterministically derive an
+     encryption keypair for this purpose (this is a well-known
+     pattern — document it clearly as your key-derivation approach in
+     your report's design chapter)."
+
+--------------------------------------------------------------------
+MODULE 6: IPFS / Pinata Service
+--------------------------------------------------------------------
+"Create ipfsService.js with:
+  1. `uploadToIPFS(encryptedBlob, fileName)` — uploads the encrypted
+     file to Pinata using their pinFileToIPFS REST endpoint (or
+     official SDK) with the API key/JWT loaded from an environment
+     variable, returns the resulting CID.
+  2. `fetchFromIPFS(cid)` — fetches the encrypted blob from a public
+     IPFS gateway (e.g. https://gateway.pinata.cloud/ipfs/{cid} or
+     https://ipfs.io/ipfs/{cid}) as an ArrayBuffer for decryption.
+Handle upload/fetch errors gracefully and surface clear error
+messages to the UI (e.g. 'Failed to pin file — check your Pinata API
+key' or 'File not found on IPFS gateway, retrying with backup
+gateway')."
+
+--------------------------------------------------------------------
+MODULE 7: Contract Interaction Service
+--------------------------------------------------------------------
+"Create contractService.js using Ethers.js v6 that wraps all
+FileRegistry contract calls: connectContract(signer), uploadFile(cid,
+name, type, size), grantAccess(fileId, granteeAddress,
+encryptedKeyBlob, expiresAt), revokeAccess(fileId, granteeAddress),
+hasAccess(fileId, address), getMyFiles(), getFilesSharedWithMe(),
+getEncryptedKeyFor(fileId, address), plus event listener helpers
+getFileUploadedEvents(), getAccessGrantedEvents(),
+getAccessRevokedEvents() for the Activity Log. Include the ABI
+(exported automatically by Hardhat compile) and the deployed contract
+address (read from an environment variable so it's easy to redeploy
+without hunting through code)."
+
+--------------------------------------------------------------------
+MODULE 8: React UI — Upload & My Files
+--------------------------------------------------------------------
+"Build a FileUpload component: file picker -> on submit, generate a
+random AES key (Module 5), encrypt the file, upload to IPFS (Module
+6), then call uploadFile() on the contract (Module 7) with the
+returned CID, name, type, size — also store the raw AES key
+temporarily associated with that file for the owner's own future
+decryption (owner needs a way to decrypt their own files too; the
+simplest approach is the owner also 'grants access to themselves'
+via the same encrypted-key mechanism at upload time, so
+getEncryptedKeyFor always works uniformly for owner and grantees
+alike).
+Build a MyFiles component: calls getMyFiles(), displays each file's
+name/type/size/uploadedAt, with a 'Share' button opening a ShareModal
+(enter a wallet address + optional expiry -> encrypts the file's AES
+key to that address's derived public key -> calls grantAccess()) and
+a 'Manage Access' view listing current grantees with per-grantee
+Revoke buttons."
+
+--------------------------------------------------------------------
+MODULE 9: React UI — Shared With Me & Download
+--------------------------------------------------------------------
+"Build a SharedWithMe component: calls getFilesSharedWithMe(),
+displays each file with a Download button. On click: call
+hasAccess(fileId, myAddress) as a client-side pre-check (contract is
+the real enforcement, this is just fast UX feedback), then
+getEncryptedKeyFor(fileId, myAddress), decrypt that key using the
+connected wallet's derived keypair (Module 5), fetch the encrypted
+blob from IPFS (Module 6), decrypt the file locally, and trigger a
+browser download of the plaintext file. Show clear loading states for
+each step (fetching key from chain / fetching file from IPFS /
+decrypting) since this multi-step process benefits from transparent
+progress feedback."
+
+--------------------------------------------------------------------
+MODULE 10: Activity Log & Network/Transaction UX
+--------------------------------------------------------------------
+"Build an ActivityLog component that queries the three contract
+events (Module 7 helpers) and merges them into a single
+chronological feed: 'Uploaded FileX', 'Granted access to 0xABC... for
+FileY', 'Revoked access from 0xDEF... for FileZ', each with a link to
+the transaction on Sepolia Etherscan. Also add a global
+TransactionStatusToast component that listens for pending/mined
+transaction states from Ethers.js and shows toast notifications
+('Transaction submitted...', 'Transaction confirmed ✓', 'Transaction
+failed ✗ — <reason>') so the async, sometimes-slow nature of
+blockchain transactions is clearly communicated to the user."
+
+
+====================================================================
+6. SUGGESTED PROJECT TIMELINE (12-14 WEEKS)
+====================================================================
+Week 1-2   Literature review (centralized vs decentralized storage,
+           IPFS content-addressing basics, Ethereum/Solidity basics,
+           related academic/industry Web3 file-sharing projects for
+           context), requirements gathering, architecture diagrams
+Week 3     Environment setup: Hardhat, MetaMask, Sepolia faucet,
+           Pinata account (Module 1)
+Week 4     Smart contract design & implementation (Module 2)
+Week 5     Smart contract testing (Module 3)
+Week 6     Deployment + Etherscan verification (Module 4)
+Week 7     Client-side encryption service (Module 5) — spend real
+           time here, this is a core technical contribution
+Week 8     IPFS/Pinata integration (Module 6)
+Week 9     Contract interaction service (Module 7)
+Week 10    Upload & My Files UI (Module 8)
+Week 11    Shared With Me & Download UI (Module 9)
+Week 12    Activity log, transaction UX polish (Module 10)
+Week 13    Full end-to-end testing on Sepolia, gas cost analysis,
+           bug fixes
+Week 14    Documentation (final project write-up), defense prep
+
+
+====================================================================
+7. PROJECT REPORT / DOCUMENTATION STRUCTURE
+====================================================================
+Chapter 1: Introduction (background on centralization problems, aim
+  & objectives, scope, significance)
+Chapter 2: Literature Review (how IPFS content-addressing works vs
+  location-addressing of URLs, how Ethereum smart contracts provide
+  tamper-proof state, brief survey of decentralized storage
+  approaches — Filecoin, Arweave, Swarm — for comparison context)
+Chapter 3: System Analysis & Design (architecture diagram from
+  Section 3.1, smart contract data/function design from Section 4,
+  sequence diagrams for "Upload Flow" and "Share & Access Flow,"
+  discussion of the key-management design decision from Section 2.3
+  as your central design trade-off)
+Chapter 4: System Implementation (tech stack justification, module
+  descriptions, screenshots of each module + the deployed contract on
+  Sepolia Etherscan, key code snippets — the Solidity contract and
+  encryptionService.js)
+Chapter 5: Testing & Results (Hardhat test suite results, gas cost
+  table per function, end-to-end demo walkthrough with screenshots,
+  discussion of transaction confirmation times observed on testnet)
+Chapter 6: Summary, Conclusion, Recommendations, Future Work (mainnet
+  or Layer-2 deployment considerations and costs, fully trustless key
+  exchange schemes, mobile client, integration with ENS names instead
+  of raw addresses, decentralized identity (DID) for a friendlier
+  login experience)
+References
+Appendices (full Solidity source, full test suite output, GitHub
+  link, user manual)
+
+
+====================================================================
+8. DEMO SCENARIO SCRIPT (use this for your defense)
+====================================================================
+1. Open the DApp, connect MetaMask (Account A), confirm it shows
+   "Connected: 0xAAA... on Sepolia."
+2. Upload a sample file (e.g. a PDF) -> show the step-by-step
+   progress toast (encrypting -> uploading to IPFS -> confirming
+   transaction) -> once done, show the file listed in "My Files" and
+   open its CID on a public IPFS gateway to prove it's really on
+   IPFS (note: it will show encrypted/unreadable bytes if opened
+   directly, which is expected and worth explaining).
+3. Copy the CID and show it on the deployed contract via Sepolia
+   Etherscan (read the `files` mapping directly) to prove the record
+   is genuinely on-chain, not just in a database your app controls.
+4. Switch MetaMask to a second account (Account B), show that
+   "Shared With Me" is empty for B.
+5. Switch back to Account A, use the Share modal to grant Account B
+   access to the uploaded file.
+6. Switch to Account B, refresh "Shared With Me" -> the file now
+   appears -> click Download -> show the multi-step
+   fetch-key/fetch-file/decrypt progress -> the original file
+   downloads correctly and opens normally.
+7. Switch back to Account A, revoke Account B's access.
+8. Switch to Account B, try to access the same file again -> show it
+   either disappears from the list or a "No access" error appears,
+   proving the contract enforces the revocation.
+9. Open the Activity Log and show the full on-chain event history for
+   this walkthrough, with each entry linking to its Etherscan
+   transaction.
+10. Briefly show the Hardhat test suite passing and the gas cost
+    report for each function.
+
+This demonstrates every core claim in your abstract: IPFS storage,
+on-chain ownership/permission registry, wallet-based access
+enforcement, and no reliance on a centralized authority.
+
+
+====================================================================
+9. KEY RISKS / THINGS EXAMINERS OFTEN PROBE — BE READY TO ANSWER
+====================================================================
+- "Isn't Pinata itself a centralized point of failure?" -> Yes,
+  acknowledge this honestly: Pinata is a pinning *convenience*
+  service, not the source of truth. The file's CID is
+  content-derived, so ANY IPFS node — not just Pinata — can serve it
+  once pinned somewhere; if Pinata disappeared, the same file could
+  be re-pinned by any other IPFS node/service that has a copy, and
+  the ownership/permission record on Ethereum is completely
+  independent of Pinata. This is a good, honest talking point for
+  your "limitations" section.
+- "Isn't MetaMask/Infura/Alchemy also a centralized dependency?" ->
+  Acknowledge that practical Web3 apps still depend on RPC providers
+  for convenient blockchain access, but note that the underlying
+  Ethereum network itself is decentralized and a user could run their
+  own node instead — discuss this spectrum-of-decentralization
+  point explicitly, it's a mature, examiner-pleasing answer.
+- "What happens to gas fees — who pays, and is that a barrier?" ->
+  Explain that every state-changing action (upload, grant, revoke)
+  costs the user's connected wallet gas on Sepolia (test ETH, free
+  from faucets for this project); discuss in your future-work section
+  how Layer-2 networks (e.g. Polygon, Arbitrum) or gas-sponsorship
+  patterns could reduce this friction for a production version.
+- "How is this different from just using IPFS with public files?" ->
+  Explain that plain IPFS has no built-in access control — anyone
+  with a CID can fetch a public file — and your project's core
+  contribution is precisely combining IPFS with the Ethereum smart
+  contract's access-control layer plus client-side encryption to add
+  the missing permission and confidentiality layer.
+- "Why not store the file directly on Ethereum?" -> Explain on-chain
+  storage is prohibitively expensive in gas costs for anything beyond
+  small data; IPFS is used for the bulk file data while Ethereum
+  stores only the small CID/metadata/permission records — this
+  separation of concerns is standard Web3 architecture and worth
+  explaining clearly.
+
+
+====================================================================
+END OF DOCUMENT
+====================================================================

@@ -1,0 +1,13 @@
+{
+  "name": "testing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:ui": "node run-ui-tests.mjs"
+  },
+  "dependencies": {
+    "@metamask/eth-sig-util": "^8.2.0",
+    "ethers": "^6.17.0",
+    "playwright-core": "^1.55.0"
+  }
+}
