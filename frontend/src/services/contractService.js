@@ -156,6 +156,18 @@ export async function getAccessRevokedEvents(fromBlock = 0, granteeAddress = nul
   return events.filter((e) => e.args.grantee.toLowerCase() === target);
 }
 
+// RPC providers (Infura, etc.) cap eth_getLogs to a fixed block range
+// (Sepolia: 10,000 blocks). Querying from block 0 therefore fails. When no
+// explicit fromBlock is given we bound the search to the most recent range.
+const MAX_LOGS_RANGE = 9000;
+
+/** Resolve an explicit fromBlock, else the newest <MAX_LOGS_RANGE> blocks. */
+export async function resolveFromBlock(fromBlock) {
+  if (fromBlock > 0) return fromBlock;
+  const latest = await getProvider().getBlockNumber();
+  return Math.max(0, latest - MAX_LOGS_RANGE);
+}
+
 /**
  * Fetch all activity events merged into a single chronological list.
  * When `address` is provided, only events where that address is the owner or
@@ -163,10 +175,11 @@ export async function getAccessRevokedEvents(fromBlock = 0, granteeAddress = nul
  * @returns {Promise<Array<{type, fileId, owner, other, cid, txHash, timestamp, blockNumber}>>}
  */
 export async function getActivityFeed(fromBlock = 0, address = null) {
+  const resolvedFrom = await resolveFromBlock(fromBlock);
   const [uploads, grants, revokes] = await Promise.all([
-    getFileUploadedEvents(fromBlock),
-    getAccessGrantedEvents(fromBlock),
-    getAccessRevokedEvents(fromBlock),
+    getFileUploadedEvents(resolvedFrom),
+    getAccessGrantedEvents(resolvedFrom),
+    getAccessRevokedEvents(resolvedFrom),
   ]);
 
   const items = [];
