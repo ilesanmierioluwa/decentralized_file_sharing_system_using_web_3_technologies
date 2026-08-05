@@ -126,6 +126,18 @@ export function WalletProvider({ children }) {
     };
   }, [ethereum, refreshSigner, disconnect]);
 
+  // Re-create the signer whenever the wallet lands on the configured network.
+  // The signer is initially created during connect() while the wallet may
+  // still be on a different chain, which pins its ethers provider to that
+  // chain and makes reads throw ethers' "network changed" NETWORK_ERROR after
+  // the app switches networks. A fresh provider created on the correct chain
+  // avoids that stale-network binding.
+  useEffect(() => {
+    if (account && chainId === config.chainId) {
+      refreshSigner(account);
+    }
+  }, [account, chainId, refreshSigner]);
+
   // Auto-reconnect if the wallet is already unlocked with the expected chain.
   useEffect(() => {
     const tryAutoConnect = async () => {
