@@ -1,0 +1,131 @@
+====================================================================
+FREE GAS FOR TESTING THE DApp (SEPOLIA TEST ETH)
+====================================================================
+This app runs on the Ethereum SEPOLIA TESTNET. "Gas" is the small fee
+paid to the network for each blockchain transaction (uploading a file,
+sharing it, revoking access...). You pay it with SEPOLIA test ETH,
+which is FREE — it has no real-money value. This guide shows visitors
+how to get enough of it to test the app.
+
+Quick summary: get MetaMask -> switch to Sepolia -> claim free test ETH
+from a faucet -> you are ready to test.
+
+--------------------------------------------------------------------
+WHICH ACTIONS NEED GAS?
+--------------------------------------------------------------------
+Costs a little test ETH (0.0001-0.0002 ETH per call):
+   - Upload a file (register it on-chain)
+   - Grant / revoke access to someone
+   - Any transaction that writes to the contract
+
+Free (no ETH needed):
+   - Connecting your wallet
+   - Viewing "My Files", "Shared With Me", "Activity Log"
+   - Downloading files you have access to
+
+So a few 0.1 ETH is enough for many dozens of test transactions.
+
+--------------------------------------------------------------------
+STEP 1 - INSTALL META MASK
+--------------------------------------------------------------------
+1. Install the MetaMask browser extension (Chrome/Firefox/Edge/Brave):
+   https://metamask.io/download/
+2. Open it and create a new wallet (or log into an existing one).
+3. IMPORTANT: it is a testnet, so do NOT fund it with real money.
+   Never use an account that holds real (mainnet) funds for this.
+
+--------------------------------------------------------------------
+STEP 2 - ADD THE SEPOLIA NETWORK TO META MASK
+--------------------------------------------------------------------
+When you open the app and click "Connect Wallet", the DApp asks
+MetaMask to add/switch to Sepolia automatically - just approve it.
+
+To do it manually instead:
+1. Open the MetaMask popup.
+2. Open the network list / settings (the new MetaMask version moved the
+   network menu - look for the network chip near your token list).
+3. Find "Sepolia" and select it. If it is not listed, use
+   "Add network":
+        Network name:     Sepolia
+        New RPC URL:      https://rpc.sepolia.org
+        Chain ID:         11155111
+        Currency symbol:  SEPOLIAETH
+        Block explorer:   https://sepolia.etherscan.io
+4. Save. MetaMask now shows your (zero) Sepolia balance.
+
+--------------------------------------------------------------------
+STEP 3 - GET FREE SEPOLIA TEST ETH FROM A FAUCET
+--------------------------------------------------------------------
+A "faucet" is a website that sends free test ETH to any wallet
+address. You need your wallet address:
+   - In MetaMask, click your account name -> "Copy address".
+   - It looks like: 0x123f9b48a65FA8836e620D1573AE63815C6D7D01
+
+Pick any faucet below, paste that address, and submit:
+
+   1. Alchemy Sepolia faucet (needs a free Alchemy login)
+      https://www.alchemy.com/faucets/ethereum-sepolia
+      -> ~0.5 SEPOLIAETH, 1 claim every 24h
+
+   2. Google Cloud Web3 faucet (free, quick, no crypto login)
+      https://cloud.google.com/application/web3/faucet/ethereum/sepolia
+      -> ~0.5 SEPOLIAETH, 1 claim every 24h
+
+   3. QuickNode Sepolia faucet (free)
+      https://faucet.quicknode.com/ethereum/sepolia
+      -> small amount, 1 claim per day
+
+   4. Chainlink Sepolia faucet (gives ETH + LINK, needs GitHub login)
+      https://faucets.chain.link/sepolia
+
+   5. Community faucets (may ask for a social login)
+      https://www.sepoliafaucet.io/
+
+Note: faucets send to the ADDRESS you paste, so double-check you copied
+the correct one. If you paste the wrong address, the ETH goes to that
+address and cannot be recovered.
+
+--------------------------------------------------------------------
+STEP 4 - CHECK YOUR BALANCE
+--------------------------------------------------------------------
+1. Make sure MetaMask is still on the SEPOLIA network (Step 2).
+2. Wait 30 seconds to a few minutes for the faucet transaction.
+3. Open the MetaMask popup - your balance should now show test ETH
+   (e.g. 0.5 SEPOLIAETH).
+4. If it still shows 0, you are probably viewing the wrong network in
+   MetaMask (the default view shows Ethereum Mainnet, which is empty).
+   Switch to Sepolia and check again.
+
+--------------------------------------------------------------------
+STEP 5 - USE THE APP
+--------------------------------------------------------------------
+1. Open the app URL and click "Connect Wallet".
+2. Approve the network switch to Sepolia if MetaMask asks.
+3. Upload a file, download it, share it with another address, etc.
+4. MetaMask will show a transaction confirmation for each on-chain
+   write - review and confirm it.
+
+When a transaction is pending, it usually confirms within 30 seconds.
+Sepolia is a public testnet, so occasionally the network is busy and a
+transaction takes a minute - that is normal.
+
+--------------------------------------------------------------------
+RUNNING LOW? REFILLING
+--------------------------------------------------------------------
+- You can claim from a DIFFERENT faucet if the first one has a daily
+  limit.
+- After 24h you can claim from the same faucet again.
+- If you created a brand-new wallet for testing, the old faucet claims
+  still went to the old address - claim fresh ETH to the new address.
+
+--------------------------------------------------------------------
+IMPORTANT NOTES
+--------------------------------------------------------------------
+- SEPOLIA test ETH has NO real value. Never pay real money for it.
+- Never paste a private key or secret recovery phrase into a faucet or
+  anywhere online - faucets only need your public wallet ADDRESS.
+- The same Sepolia RPC setup for developers is explained in
+  RPC_ENDPOINT_SETUP_GUIDE.txt.
+- This project only runs on Sepolia; there is no mainnet deployment,
+  so no real ETH is ever required.
+====================================================================
